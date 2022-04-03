@@ -1,13 +1,14 @@
 ---
 title: "TMA4268-Project2"
-output: html_document
+author: "Magnus Grytten, Jokhongir Khayrullaev & Rashad Naghiyev"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, results = FALSE, message = FALSE}
+```{r, results = FALSE, message = FALSE, warning = FALSE}
 # Libraries used throughout the exercise
 library("ggplot2")
 library("tidyverse")
@@ -26,6 +27,7 @@ library("ggfortify")
 
 ```
 
+## Problem 1
 ```{r}
 
 set.seed(1)
@@ -39,6 +41,88 @@ train.ind = sample(1:nrow(boston), 0.8 * nrow(boston))
 boston.train = data.frame(boston[train.ind, ])
 
 ```
+
+### a)
+```{r}
+res_forward <- regsubsets(medv~. ,data = boston.train, nvmax = 13, method = "forward")
+res_forward_sum <- summary(res_forward)
+
+res_backward <- regsubsets(medv~. ,data = boston.train, nvmax = 13, method = "backward")
+res_backward_sum <- summary(res_backward)
+
+plot(res_forward_sum$adjr2, xlab = "Number of predictors",
+     ylab = "Adjusted R^2", main = "Forward Stepwise")
+plot(res_backward_sum$adjr2, xlab = "Number of predictors",
+     ylab = "Adjusted R^2", main = "Backward Stepwise")
+```
+
+### b)
+```{r}
+coefs <- res_forward_sum$which[4,-1]
+print(names(coefs[coefs == TRUE]))
+```
+
+### c)
+
+(i)
+```{r}
+x <- model.matrix(medv~.,-1,data = boston.train)
+y <- boston.train$medv
+
+cv_lasso <- cv.glmnet(x,y,nfolds = 5)
+plot(cv_lasso)
+```
+
+(ii)
+```{r}
+best_lambda <-cv_lasso$lambda.min
+print(best_lambda)
+```
+
+(iii)
+```{r}
+fit_lasso <- glmnet(x,y)
+coef(fit_lasso,s = best_lambda)
+
+```
+
+### d)
+(i)    True
+(ii)   False
+(iii)  False
+(iiii) True
+
+## Problem 2
+
+```{r}
+# load a synthetic dataset
+id <- "1CWZYfrLOrFdrIZ6Hv73e3xxt0SFgU4Ph" # google file ID
+synthetic <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download",
+id))
+# split into training and test sets
+train.ind = sample(1:nrow(synthetic), 0.8 * nrow(synthetic))
+synthetic.train = data.frame(synthetic[train.ind, ])
+synthetic.test = data.frame(synthetic[-train.ind, ])
+# show head(..) Y: response variable; X: predictor variable
+head(synthetic)
+```
+
+### a)
+```{r}
+pcr_fit = pcr(Y~., data = synthetic.train, scale = TRUE, validation = "none")
+pls_fit = plsr(Y~., data = synthetic.train, scale = TRUE, validation = "none")
+
+validationplot(pcr_fit, val.type = "MSEP", newdata = synthetic.test, main = "PCR")
+validationplot(pls_fit, val.type = "MSEP", newdata = synthetic.test, main = "PLSR")
+```
+
+### b)
+Seeing as PCR and PLSR tend to behave similarly and have similar performance it is somewhat surprising that PLSR outperforms PCR in this case. However by looking at the dataset,
+```{r}
+plot(synthetic)
+```
+we find that X4 to X10 seems to all be uniformly distributed between -1 and 1 and uncorrelated to the other predictors. We also see that Y and X1, and X3, X4 are correlated, while the rest of the predictors are weakly- or uncorrelated. Since there are so many of the predictors that are just noise it now makes more sense that PLSR outperforms PCR since it is a supervised method, that attempts to find directions that explain the response. As opposed to PCR where in this case many of the principal components end up being weakly correlated to the repose due to many of the predictors. being noise.
+
 
 ## Problem 3
 
@@ -75,7 +159,7 @@ iv) True
 ```{r}
 
 
-knitr::include_graphics("tree.png")
+#knitr::include_graphics("tree.png")
 
 ```
 ### c)
