@@ -61,11 +61,12 @@ plot(res_backward_sum$adjr2, xlab = "Number of predictors",
 coefs <- res_forward_sum$which[4,-1]
 print(names(coefs[coefs == TRUE]))
 ```
+From our previous results we find that the four best predictors from forward stepwise are, "rm", "dis", "ptratio" and "lstat". These are not however necessarily the best overall four predictors we would find from best subset selection.
 
 ### c)
 
 (i)
-```{r}
+```{r, warning = FALSE}
 x <- model.matrix(medv~.,-1,data = boston.train)
 y <- boston.train$medv
 
@@ -78,6 +79,7 @@ plot(cv_lasso)
 best_lambda <-cv_lasso$lambda.min
 print(best_lambda)
 ```
+
 
 (iii)
 ```{r}
@@ -103,8 +105,6 @@ id))
 train.ind = sample(1:nrow(synthetic), 0.8 * nrow(synthetic))
 synthetic.train = data.frame(synthetic[train.ind, ])
 synthetic.test = data.frame(synthetic[-train.ind, ])
-# show head(..) Y: response variable; X: predictor variable
-head(synthetic)
 ```
 
 ### a)
