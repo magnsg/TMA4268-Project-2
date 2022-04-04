@@ -79,14 +79,14 @@ plot(cv_lasso)
 best_lambda <-cv_lasso$lambda.min
 print(best_lambda)
 ```
-
+The lambda with the lowest MSE is 0.001803259. The log of this is -6.31816, which is what is what we see in the previous plot.
 
 (iii)
 ```{r}
 fit_lasso <- glmnet(x,y)
 coef(fit_lasso,s = best_lambda)
-
 ```
+Above you can find a print out of the fitted coefficients for lambda = 0.001803259.
 
 ### d)
 (i)    True
@@ -157,10 +157,7 @@ iv) True
 ### b)
 
 ```{r}
-
-
 #knitr::include_graphics("tree.png")
-
 ```
 ### c)
 
