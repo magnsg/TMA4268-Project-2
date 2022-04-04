@@ -260,7 +260,345 @@ varImpPlot(species_RF_test, pch = 20, main = "")
 From the importance graph, it is clearly seen that variables such as bill and flipperL are most influential. 
 
 
+## Problem 5
+### a)
 
+a.i. False
+a.ii. True
+a.iii. False
+a.vi. True
+
+### b)
+b.i.
+
+We begin solving the problem by loading the "penguins" data and deviding it into
+test and train datasets. 
+```{r}
+data(penguins)
+names(penguins) <- c("species", "island", "billL", "billD", "flipperL", "mass",
+                     "sex","year")
+
+Penguins_reduced <- penguins %>% dplyr::mutate(mass = as.numeric(mass), 
+                                    flipperL = as.numeric(flipperL), 
+                                        year = as.numeric(year)) %>% drop_na()
+
+# We do not want 'year' in the data (this will not help for future predictions)
+Penguins_reduced <- Penguins_reduced[, -c(8)]
+
+set.seed(4268)
+# 70% of the sample size for training set
+training_set_size <- floor(0.7 * nrow(Penguins_reduced))
+train_ind <- sample(seq_len(nrow(Penguins_reduced)), size = training_set_size)
+train <- Penguins_reduced[train_ind, ]
+test <- Penguins_reduced[-train_ind, ]
+
+
+```
+Once the data is loaded, we continue by fitting linear svm model into our data 
+for predicting penguin species from their island, billL, billD, flipperL, mass, 
+sex first. 
+
+```{r}
+
+train_model_lin<-svm(species~.,data=train,kernel="linear")
+```
+The linear svm model's error rate depends on chosen cost value, we perform 
+cross-validation on training data for defining the best cost value resulting in
+lowest error rate.
+
+```{r}
+tune_tml<-tune(svm, species~., data=train, kernel="linear", 
+               ranges = list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100,200)))
+
+```
+We can see the best model's cost parameter value using the command below
+```{r}
+
+best_tml_model_par<-tune_tml$best.parameters
+print(best_tml_model_par)
+
+```
+and the error rate of the best model can be seen running the line below.
+```{r}
+#summary(tune_tml)
+
+```
+As one can see the best linear svm model is with cost=1 and it has error=0.
+
+Once we are done with selecting the best linear svm model we start selecting 
+radial svm model. The first step is building radial svm model  
+
+```{r}
+
+train_model_rad<-svm(species~.,data=train,kernel="radial")
+
+```
+Secondly we perform cross validation of the model in order to choose optimal  
+gamma and cost parameters in similar principle as for linear svm model.
+
+```{r}
+tune_tmr<-tune(svm, species~., data=train, kernel="radial", 
+               ranges = list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100,200), 
+                             gamma=c(0.5,1,2,3,4,5,6)))
+
+```
+We can see that the best model parameters are
+
+```{r}
+best_tmr_model_par<-tune_tmr$best.parameters
+print(best_tmr_model_par)
+
+```
+The error rate of best radial svm model can be seen via running line below
+```{r}
+
+#summary(tune_tmr)
+
+```
+As one can see the best radial model is with cost=5, gamma=0.5 and it has er-
+ror=0.004166667.
+
+We save the best linear svm model and best radial svm model for further usage
+here
+
+```{r}
+
+best_tml_model<-tune_tml$best.model
+best_tmr_model<-tune_tmr$best.model
+
+```
+b.ii.
+
+We will construct confusion tables and calculate missclassification error rate 
+for the best linear and radial svm models defined above using the "penguin"s 
+test dataset.
+
+We will start with the linear svm model. We will predict penguins species using
+the test data, after that we will compare our predictions with truth given in 
+test dataset. 
+
+```{r}
+#Predictions using  the linear  svm model and constructing its confusion table
+linpred <- predict(best_tml_model,test)
+linpred_table<-table(predict=linpred, truth=test$species)
+print(linpred_table)
+```
+
+Once the confusion table is calculated, we calculate misclassification error for
+this model.
+
+```{r}
+linpred_missclass_error=1-sum(diag(linpred_table))/sum(linpred_table)
+paste0("Linear vsm model's misclassification error is: ", linpred_missclass_error*100, "%")
+
+```
+We can see that linear svm model has o % misclassification error which is pretty 
+good.
+
+
+We perform the same procedure for radial svm model.
+
+```{r}
+radpred <- predict(best_tmr_model,test)
+radpred_table<-table(predict=radpred, truth=test$species)
+radpred_missclass_error=1-sum(diag(radpred_table))/sum(radpred_table)
+print(radpred_table)
+paste0("Radial vsm model's misclassification error is: ", radpred_missclass_error*100, "%")
+
+```
+Radial svm model has 1 % misclassification error, that is not bad although worse
+comparing to linear svm model with 0% misclassification error.
+
+b.iii.
+
+In this case I would prefer linear vsm model other than radial vsm model. Becau-
+se, it has lower misclassification error and there is no big differance in the
+models running time.
+
+## Problem 6
+### a)
+
+We start by loading the world-happiness-report-2021 dataset in order to asnwer 
+the problem a) questions.
+ 
+```{r}
+id <- "1NJ1SuUBebl5P8rMSIwm_n3S8a7K43yP4" # google file ID
+happiness <- read.csv(
+  sprintf("https://docs.google.com/uc?id=%s&export=download", id),
+  fileEncoding="UTF-8-BOM")
+colnames=colnames(happiness)
+cols = c('Country.name',
+         'Ladder.score', # happiness score
+         'Logged.GDP.per.capita',
+         'Social.support',
+         'Healthy.life.expectancy',
+         'Freedom.to.make.life.choices',
+         'Generosity', # how generous people are
+         'Perceptions.of.corruption')
+# We continue with a subset of 8 columns:
+happiness = subset(happiness, select = cols)
+rownames(happiness) <- happiness[, c(1)]
+# And we creat an X and a Y matrix
+happiness.X = happiness[, -c(1, 2)]
+happiness.Y = happiness[, c(1, 2)]
+happiness.XY = happiness[, -c(1)]
+# scale
+happiness.X = data.frame(scale(happiness.X))
+str=str(happiness)
+
+library(ggfortify)
+library(ggplot2)
+pca_mat = prcomp(happiness.X, center = T, scale = T)
+# Score and loadings plot:
+autoplot(pca_mat, data = happiness.X, colour = "Black", loadings = TRUE, 
+         loadings.colour = "red", loadings.label = TRUE, 
+         loadings.label.size = 3.5, label = T, label.size = 1.8)
+
+```
+a.i. 
+
+We can see from the given plot there are 6 loading directions Generosity,
+Freedom to make life choices, Perception of corruption, Healthy life expec-
+tancy, Social support, Logged GDP per capita. We can see that Freedom to make 
+life choices is controlled by decrease in both PC1, PC2 variables almost 
+evenly, since the vector showing characteristics direction starts when PC1, PC2  
+ are at zero and it is pointing at the angle 45 degrees. 
+
+On the other hand the Generosity is mostly controlled by PC2. Its vector has 
+the same origin, however the vector is almost vertical that means PC1 has al-
+most no effect on it. 
+
+a.ii. 
+
+We can consider Afganistan as outlier.  
+
+### b)
+
+b.i.
+
+The graphical representation of absolute values of first principal components
+(PC1) is generated by the code below. 
+
+```{r}
+PC1_values = unname(abs(subset(pca_mat$rotation, select = PC1)))
+PC1_rownames = rownames((subset(pca_mat$rotation, select = PC1)))
+PC1 = data.frame(PC1_rownames,PC1_values)
+
+plot<-ggplot(PC1,aes(x=PC1_rownames, y=PC1_values, fill=PC1_values))+
+  geom_bar(stat='identity', position = "dodge", width = 0.8, show.legend=NA)
+plot<-plot+theme(axis.text.x=element_text(size=5.5))
+plot<-plot+ggtitle("World happiness report first principal components")
+plot+xlab("Component")+ylab("The component value")+
+  labs(fill="Color coding")+scale_fill_gradient(low="red", high="green")
+
+```
+
+
+b.ii. 
+
+We fit PLSR on happiness.XY with response of Ladder.score (=happiness score) 
+while using remaining  variables as predictors.
+```{r}
+set.seed(1)
+library(pls)
+To_predict = happiness.XY$Ladder.score
+cols2 = c('Logged.GDP.per.capita',
+         'Social.support',
+         'Healthy.life.expectancy',
+         'Freedom.to.make.life.choices',
+         'Generosity', # how generous people are
+         'Perceptions.of.corruption')
+
+For_predicting = subset(happiness.XY, select = cols2)
+plsr_model <-plsr(To_predict~.,data=For_predicting,scale=T)
+
+```
+
+
+b.iii.
+
+Here we plot predicted by PLSR above absolute values of first principal compo-
+nents (happiness).
+
+```{r}
+plsr_results=plsr_model$loadings[,c("Comp 1")]
+
+plsr_results_values = unname(abs(plsr_results))
+plsr_results_rownames = names(plsr_results)
+plsr_results_to_plot = data.frame(plsr_results_rownames,plsr_results_values)
+
+plot2<-ggplot(plsr_results_to_plot,aes(x=plsr_results_rownames, 
+                                      y=plsr_results_values, 
+                                      fill=plsr_results_values))+
+  geom_bar(stat='identity', position = "dodge", width = 0.8, show.legend=NA)
+plot2<-plot+theme(axis.text.x=element_text(size=5.3))
+plot2<-plot+ggtitle("PLSR predicted World happiness report first principal 
+                    components")
+plot2+xlab("Component")+ylab("The component value")+
+  labs(fill="Color coding")+scale_fill_gradient(low="red", high="green")
+
+```
+
+b.iv.
+
+As one can see from the graph above, Healthy life expectancy, Logged GDP per
+capita, Social support are the most important variables for predicting the
+happiness.
+
+### c)
+c.i. False
+c.ii. False
+c.iii. True
+c.iv. True
+
+
+### d)
+
+d.i.
+
+The given condition for clustering United States in one cluster while Norway, 
+Sweden, Finland, Denmark in another cluster by K-means clusterization was satis-
+fied by setting K=3.4.
+
+```{r}
+K = 3.4 # your choice
+km.out = kmeans(happiness.X, K)
+autoplot(pca_mat, data = happiness.X, colour = km.out$cluster, label = T, label.size = 1.8,
+         loadings = F, loadings.colour = "blue", loadings.label = F, loadings.label.size = 0.6)
+
+```
+d.ii. As one can see from the clusters statistics below,  the happiest countries
+are in the cluster number 1 (black in the plot above), the cluster number two 
+(red in the plot) is on second place and the cluster number 3 (green in the plot
+above) is third. In average, the countries in the first cluster are more than 
+50 % happier than the counties in the third cluster.    
+
+```{r}
+Clusters = km.out$cluster
+Cluster_with_happiness = merge(happiness.Y, Clusters, by="row.names", all=TRUE)
+Cluster_with_happiness<-Cluster_with_happiness[with(Cluster_with_happiness, 
+                                                    order(y)), ]
+library(tidyverse)
+Cluster_with_happiness_1<-Cluster_with_happiness%>%filter(y==1)
+Cluster_with_happiness_1<-Cluster_with_happiness_1[with(Cluster_with_happiness_1,
+                                                        order(Ladder.score)),]
+Cluster_with_happiness_2<-Cluster_with_happiness%>%filter(y==2)
+Cluster_with_happiness_2<-Cluster_with_happiness_2[with(Cluster_with_happiness_2,
+                                                        order(Ladder.score)),]
+Cluster_with_happiness_3<-Cluster_with_happiness%>%filter(y==3)
+Cluster_with_happiness_3<-Cluster_with_happiness_3[with(Cluster_with_happiness_3,
+                                                        order(Ladder.score)),]
+print1 <- function(x,pcol,clusnum){
+  print(paste0("There are ", length(x$Ladder.score)))
+  print(paste0("countries in cluster number ", clusnum, " (in ", pcol, " in the plot above)"))
+  print("The cluster has following statistics:")
+  summary(x$Ladder.score)
+}
+print1(Cluster_with_happiness_1, "black", 1)
+print1(Cluster_with_happiness_2, "red", 2)
+print1(Cluster_with_happiness_3, "green", 3)
+
+```
 
 
 
